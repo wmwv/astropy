@@ -5,19 +5,26 @@
 import timeit
 
 
-def run_bench(kind, repeat=1000, n=200):
+def run_bench(kind):
     module_name = "astropy_cosmology"
     if kind:
         module_name += '_%s' % kind
 
     z_max = 100
     setup_commands = 'import %s as ac' % module_name
-    general_result = timeit.timeit('ac.run_comoving_distance(%d, z_max=%f)' % (n, z_max),
-                                   setup=setup_commands, number=repeat)
-    EdS_result = timeit.timeit('ac.run_comoving_distance_EdS(%d, z_max=%f)' % (n, z_max),
-                               setup=setup_commands, number=repeat)
-    dS_result = timeit.timeit('ac.run_comoving_distance_dS(%d, z_max=%f)' % (n, z_max),
-                              setup=setup_commands, number=repeat)
+
+    repeat = 1000
+    n = 2000
+
+    def time_cos(object_name):
+        return timeit.timeit(
+            'ac.run_comoving_distance(%s, %d, z_max=%f)' %
+            (object_name, n, z_max),
+            setup=setup_commands, number=repeat)
+
+    general_result = time_cos("ac.cosmo")
+    EdS_result = time_cos("ac.cosmo_EdS")
+    dS_result = time_cos("ac.cosmo_dS")
 
     print(kind.upper())
     print("Time to calculate comoving distance for %d redshifts." % n)
@@ -31,3 +38,4 @@ def run_bench(kind, repeat=1000, n=200):
 if __name__ == "__main__":
     run_bench("elliptic")
     run_bench("hypergeometric")
+    run_bench("integrate")
