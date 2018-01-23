@@ -2,6 +2,7 @@
 
 """Benchmark the standard vs. elliptic form of FlatLCDM."""
 
+import math
 import timeit
 
 
@@ -13,21 +14,29 @@ def run_bench(kind):
     z_max = 100
     setup_commands = 'import %s as ac' % module_name
 
-    repeat = 1000
-    n = 2000
+    repeat = 100
+    n = 200
 
     # Include z_max, repeat, n by closure
     def time_cos(object_name):
-        return timeit.timeit(
-            'ac.run_comoving_distance(%s, %d, z_max=%f)' %
-            (object_name, n, z_max),
-            setup=setup_commands, number=repeat)
+        try:
+            r = timeit.timeit(
+                'ac.run_comoving_distance(%s, %d, z_max=%f)' %
+                (object_name, n, z_max),
+                setup=setup_commands, number=repeat)
+        except TypeError as te:
+            print("TypeError:", te)
+            return math.nan
+
+        return r
+
 
     print(kind.upper())
     print("Time to calculate comoving distance for %d redshifts." % n)
     result_cos_names = (("cosmo", "General"),
                         ("cosmo_EdS", "Einstein - de Sitter"),
-                        ("cosmo_dS", "de Sitter"))
+                        ("cosmo_dS", "de Sitter"),
+                        ("cosmo_closed", "Omega_M > 1"))
 
     for cos, name in result_cos_names:
         result = time_cos("ac.%s" % cos)
@@ -37,3 +46,4 @@ def run_bench(kind):
 if __name__ == "__main__":
     run_bench("integral")
     run_bench("hypergeometric")
+    run_bench("elliptic")
