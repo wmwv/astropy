@@ -16,26 +16,24 @@ def run_bench(kind):
     repeat = 1000
     n = 2000
 
+    # Include z_max, repeat, n by closure
     def time_cos(object_name):
         return timeit.timeit(
             'ac.run_comoving_distance(%s, %d, z_max=%f)' %
             (object_name, n, z_max),
             setup=setup_commands, number=repeat)
 
-    general_result = time_cos("ac.cosmo")
-    EdS_result = time_cos("ac.cosmo_EdS")
-    dS_result = time_cos("ac.cosmo_dS")
-
     print(kind.upper())
     print("Time to calculate comoving distance for %d redshifts." % n)
-    result_names = ((general_result, "General"),
-                    (EdS_result, "Einstein - de Sitter"),
-                    (dS_result, "de Sitter"))
-    for result, name in result_names:
+    result_cos_names = (("cosmo", "General"),
+                        ("cosmo_EdS", "Einstein - de Sitter"),
+                        ("cosmo_dS", "de Sitter"))
+
+    for cos, name in result_cos_names:
+        result = time_cos("ac.%s" % cos)
         print("%30s : %.3g s" % (name, float(result)/float(repeat)))
 
 
 if __name__ == "__main__":
-    run_bench("elliptic")
+    run_bench("integral")
     run_bench("hypergeometric")
-    run_bench("integrate")
