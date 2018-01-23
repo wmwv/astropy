@@ -1211,6 +1211,8 @@ class FLRW(Cosmology, metaclass=ABCMeta):
         """ Comoving line-of-sight distance in Mpc between objects at
         redshifts z1 and z2.
 
+        Calculated using explicit integration of 1/E(z).
+
         The comoving distance along the line-of-sight between two
         objects remains constant with time for objects in the Hubble
         flow.
