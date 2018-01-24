@@ -1058,6 +1058,11 @@ def test_age():
     assert allclose(tcos.age(4), 1.5546485439853412 * u.Gyr)
     assert allclose(tcos.age([1, 5]), [5.88448152, 1.18383759] * u.Gyr)
 
+    # FlatLambdaCDM with OM>1.
+    tcos = core.FlatLambdaCDM(100, 1.5, Tcmb0=0.0)
+    results = [5.67393108, 1.89508108, 1.02642091, 0.66588222] * u.Gyr
+    assert allclose(tcos.age([0, 1, 2, 3]), results)
+
 
 @pytest.mark.skipif('not HAS_SCIPY')
 def test_distmod():
