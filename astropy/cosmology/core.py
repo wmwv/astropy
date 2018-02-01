@@ -1645,7 +1645,7 @@ class LambdaCDM(FLRW):
         if self._Tcmb0.value == 0:
             self._inv_efunc_scalar = scalar_inv_efuncs.lcdm_inv_efunc_norel
             self._inv_efunc_scalar_args = (self._Om0, self._Ode0, self._Ok0)
-            if self.Ok0 == 0:
+            if self._Ok0 == 0:
                 # Call out the Om0=0 (de Sitter) and Om0=1 (Einstein-de Sitter)
                 # The dS case is required because the hypergeometric case
                 #    for Omega_M=0 would lead to an infinity in its argument.
@@ -1653,12 +1653,18 @@ class LambdaCDM(FLRW):
                 if self._Om0 == 0:
                     self._comoving_distance_z1z2 = \
                         self._dS_comoving_distance_z1z2
+                    self._age = self._dS_age
+                    self._lookback_time = self._dS_lookback_time
                 elif self._Om0 == 1:
                     self._comoving_distance_z1z2 = \
                         self._EdS_comoving_distance_z1z2
+                    self._age = self._EdS_age
+                    self._lookback_time = self._EdS_lookback_time
                 else:
                     self._comoving_distance_z1z2 = \
                         self._hypergeometric_comoving_distance_z1z2
+                    self._age = self._analytic_age
+                    self._lookback_time = self._analytic_lookback_time
             else:
                 self._comoving_distance_z1z2 = \
                     self._elliptic_comoving_distance_z1z2
@@ -1910,154 +1916,6 @@ class LambdaCDM(FLRW):
         from scipy.special import hyp2f1
         return 2 * np.sqrt(x) * hyp2f1(1./6, 1./2, 7./6, -x**3)
 
-    def efunc(self, z):
-        """ Function used to calculate H(z), the Hubble parameter.
-
-        Parameters
-        ----------
-        z : array-like
-          Input redshifts.
-
-        Returns
-        -------
-        E : ndarray, or float if input scalar
-          The redshift scaling of the Hubble constant.
-
-        Notes
-        -----
-        The return value, E, is defined such that :math:`H(z) = H_0 E`.
-        """
-
-        if isiterable(z):
-            z = np.asarray(z)
-
-        # We override this because it takes a particularly simple
-        # form for a cosmological constant
-        Om0, Ode0, Ok0 = self._Om0, self._Ode0, self._Ok0
-        if self._massivenu:
-            Or = self._Ogamma0 * (1. + self.nu_relative_density(z))
-        else:
-            Or = self._Ogamma0 + self._Onu0
-        zp1 = 1.0 + z
-
-        return np.sqrt(zp1 ** 2 * ((Or * zp1 + Om0) * zp1 + Ok0) + Ode0)
-
-    def inv_efunc(self, z):
-        r""" Function used to calculate :math:`\frac{1}{H_z}`.
-
-        Parameters
-        ----------
-        z : array-like
-          Input redshifts.
-
-        Returns
-        -------
-        E : ndarray, or float if input scalar
-          The inverse redshift scaling of the Hubble constant.
-
-        Notes
-        -----
-        The return value, E, is defined such that :math:`H_z = H_0 /
-        E`.
-        """
-
-        if isiterable(z):
-            z = np.asarray(z)
-        Om0, Ode0, Ok0 = self._Om0, self._Ode0, self._Ok0
-        if self._massivenu:
-            Or = self._Ogamma0 * (1 + self.nu_relative_density(z))
-        else:
-            Or = self._Ogamma0 + self._Onu0
-        zp1 = 1.0 + z
-
-        return (zp1 ** 2 * ((Or * zp1 + Om0) * zp1 + Ok0) + Ode0)**(-0.5)
-
-
-class FlatLambdaCDM(LambdaCDM):
-    """FLRW cosmology with a cosmological constant and no curvature.
-
-    This has no additional attributes beyond those of FLRW.
-
-    Parameters
-    ----------
-    H0 : float or `~astropy.units.Quantity`
-        Hubble constant at z = 0.  If a float, must be in [km/sec/Mpc]
-
-    Om0 : float
-        Omega matter: density of non-relativistic matter in units of the
-        critical density at z=0.
-
-    Tcmb0 : float or scalar `~astropy.units.Quantity`, optional
-        Temperature of the CMB z=0. If a float, must be in [K].
-        Default: 0 [K]. Setting this to zero will turn off both photons
-        and neutrinos (even massive ones).
-
-    Neff : float, optional
-        Effective number of Neutrino species. Default 3.04.
-
-    m_nu : `~astropy.units.Quantity`, optional
-        Mass of each neutrino species. If this is a scalar Quantity, then all
-        neutrino species are assumed to have that mass. Otherwise, the mass of
-        each species. The actual number of neutrino species (and hence the
-        number of elements of m_nu if it is not scalar) must be the floor of
-        Neff. Typically this means you should provide three neutrino masses
-        unless you are considering something like a sterile neutrino.
-
-    Ob0 : float or None, optional
-        Omega baryons: density of baryonic matter in units of the critical
-        density at z=0.  If this is set to None (the default), any
-        computation that requires its value will raise an exception.
-
-    name : str, optional
-        Name for this cosmological object.
-
-    Examples
-    --------
-    >>> from astropy.cosmology import FlatLambdaCDM
-    >>> cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
-
-    The comoving distance in Mpc at redshift z:
-
-    >>> z = 0.5
-    >>> dc = cosmo.comoving_distance(z)
-    """
-
-    def __init__(self, H0, Om0, Tcmb0=0, Neff=3.04,
-                 m_nu=u.Quantity(0.0, u.eV), Ob0=None, name=None):
-
-        LambdaCDM.__init__(self, H0, Om0, 0.0, Tcmb0, Neff, m_nu, name=name,
-                           Ob0=Ob0)
-        # Do some twiddling after the fact to get flatness
-        self._Ode0 = 1.0 - self._Om0 - self._Ogamma0 - self._Onu0
-        self._Ok0 = 0.0
-
-        # Please see "Notes about speeding up integrals" for discussion
-        # about what is being done here.
-        if self._Tcmb0.value == 0:
-            self._inv_efunc_scalar = scalar_inv_efuncs.flcdm_inv_efunc_norel
-            self._inv_efunc_scalar_args = (self._Om0, self._Ode0)
-            # Distances for Om0=0, Om1=0 and the general flat case are already
-            # optimized in LambdaCDM.
-            if self._Om0 == 0:
-                self._age = self._dS_age
-                self._lookback_time = self._dS_lookback_time
-            elif self._Om0 == 1:
-                self._age = self._EdS_age
-                self._lookback_time = self._EdS_lookback_time
-            else:
-                self._age = self._analytic_age
-                self._lookback_time = self._analytic_lookback_time
-        elif not self._massivenu:
-            self._inv_efunc_scalar = scalar_inv_efuncs.flcdm_inv_efunc_nomnu
-            self._inv_efunc_scalar_args = (self._Om0, self._Ode0,
-                                           self._Ogamma0 + self._Onu0)
-        else:
-            self._inv_efunc_scalar = scalar_inv_efuncs.flcdm_inv_efunc
-            self._inv_efunc_scalar_args = (self._Om0, self._Ode0,
-                                           self._Ogamma0, self._neff_per_nu,
-                                           self._nmasslessnu,
-                                           self._nu_y_list)
-
     def _dS_age(self, z):
         """ Age of the universe in Gyr at redshift ``z``.
 
@@ -2196,6 +2054,166 @@ class FlatLambdaCDM(LambdaCDM):
           Lookback time in Gyr to each input redshift.
         """
         return self._analytic_age(0) - self._analytic_age(z)
+
+    def efunc(self, z):
+        """ Function used to calculate H(z), the Hubble parameter.
+
+        Parameters
+        ----------
+        z : array-like
+          Input redshifts.
+
+        Returns
+        -------
+        E : ndarray, or float if input scalar
+          The redshift scaling of the Hubble constant.
+
+        Notes
+        -----
+        The return value, E, is defined such that :math:`H(z) = H_0 E`.
+        """
+
+        if isiterable(z):
+            z = np.asarray(z)
+
+        # We override this because it takes a particularly simple
+        # form for a cosmological constant
+        Om0, Ode0, Ok0 = self._Om0, self._Ode0, self._Ok0
+        if self._massivenu:
+            Or = self._Ogamma0 * (1. + self.nu_relative_density(z))
+        else:
+            Or = self._Ogamma0 + self._Onu0
+        zp1 = 1.0 + z
+
+        return np.sqrt(zp1 ** 2 * ((Or * zp1 + Om0) * zp1 + Ok0) + Ode0)
+
+    def inv_efunc(self, z):
+        r""" Function used to calculate :math:`\frac{1}{H_z}`.
+
+        Parameters
+        ----------
+        z : array-like
+          Input redshifts.
+
+        Returns
+        -------
+        E : ndarray, or float if input scalar
+          The inverse redshift scaling of the Hubble constant.
+
+        Notes
+        -----
+        The return value, E, is defined such that :math:`H_z = H_0 /
+        E`.
+        """
+
+        if isiterable(z):
+            z = np.asarray(z)
+        Om0, Ode0, Ok0 = self._Om0, self._Ode0, self._Ok0
+        if self._massivenu:
+            Or = self._Ogamma0 * (1 + self.nu_relative_density(z))
+        else:
+            Or = self._Ogamma0 + self._Onu0
+        zp1 = 1.0 + z
+
+        return (zp1 ** 2 * ((Or * zp1 + Om0) * zp1 + Ok0) + Ode0)**(-0.5)
+
+
+class FlatLambdaCDM(LambdaCDM):
+    """FLRW cosmology with a cosmological constant and no curvature.
+
+    This has no additional attributes beyond those of FLRW.
+
+    Parameters
+    ----------
+    H0 : float or `~astropy.units.Quantity`
+        Hubble constant at z = 0.  If a float, must be in [km/sec/Mpc]
+
+    Om0 : float
+        Omega matter: density of non-relativistic matter in units of the
+        critical density at z=0.
+
+    Tcmb0 : float or scalar `~astropy.units.Quantity`, optional
+        Temperature of the CMB z=0. If a float, must be in [K].
+        Default: 0 [K]. Setting this to zero will turn off both photons
+        and neutrinos (even massive ones).
+
+    Neff : float, optional
+        Effective number of Neutrino species. Default 3.04.
+
+    m_nu : `~astropy.units.Quantity`, optional
+        Mass of each neutrino species. If this is a scalar Quantity, then all
+        neutrino species are assumed to have that mass. Otherwise, the mass of
+        each species. The actual number of neutrino species (and hence the
+        number of elements of m_nu if it is not scalar) must be the floor of
+        Neff. Typically this means you should provide three neutrino masses
+        unless you are considering something like a sterile neutrino.
+
+    Ob0 : float or None, optional
+        Omega baryons: density of baryonic matter in units of the critical
+        density at z=0.  If this is set to None (the default), any
+        computation that requires its value will raise an exception.
+
+    name : str, optional
+        Name for this cosmological object.
+
+    Examples
+    --------
+    >>> from astropy.cosmology import FlatLambdaCDM
+    >>> cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
+
+    The comoving distance in Mpc at redshift z:
+
+    >>> z = 0.5
+    >>> dc = cosmo.comoving_distance(z)
+    """
+
+    def __init__(self, H0, Om0, Tcmb0=0, Neff=3.04,
+                 m_nu=u.Quantity(0.0, u.eV), Ob0=None, name=None):
+
+        LambdaCDM.__init__(self, H0, Om0, 0.0, Tcmb0, Neff, m_nu, name=name,
+                           Ob0=Ob0)
+        # Do some twiddling after the fact to get flatness
+        self._Ode0 = 1.0 - self._Om0 - self._Ogamma0 - self._Onu0
+        self._Ok0 = 0.0
+
+        # Please see "Notes about speeding up integrals" for discussion
+        # about what is being done here.
+        if self._Tcmb0.value == 0:
+            self._inv_efunc_scalar = scalar_inv_efuncs.flcdm_inv_efunc_norel
+            self._inv_efunc_scalar_args = (self._Om0, self._Ode0)
+            # Repeat the optimization reassignments here because the init
+            # of the LambaCDM above didn't actually create a flat cosmology.
+            # That was done through the explicit tweak setting self._Ok0.
+            #
+            # Call out the Om0=0 (de Sitter) and Om0=1 (Einstein-de Sitter)
+            # The dS case is required because the hypergeometric case
+            #    for Omega_M=0 would lead to an infinity in its argument.
+            # The EdS case is three times faster than the hypergeometric.
+            if self._Om0 == 0:
+                self._comoving_distance_z1z2 = \
+                    self._dS_comoving_distance_z1z2
+                self._age = self._dS_age
+                self._lookback_time = self._dS_lookback_time
+            elif self._Om0 == 1:
+                self._comoving_distance_z1z2 = \
+                    self._EdS_comoving_distance_z1z2
+                self._age = self._EdS_age
+                self._lookback_time = self._EdS_lookback_time
+            else:
+                self._comoving_distance_z1z2 = \
+                    self._hypergeometric_comoving_distance_z1z2
+                self._age = self._analytic_age
+                self._lookback_time = self._analytic_lookback_time
+        elif not self._massivenu:
+            self._inv_efunc_scalar = scalar_inv_efuncs.flcdm_inv_efunc_nomnu
+            self._inv_efunc_scalar_args = (self._Om0, self._Ode0,
+                                           self._Ogamma0 + self._Onu0)
+        else:
+            self._inv_efunc_scalar = scalar_inv_efuncs.flcdm_inv_efunc
+            self._inv_efunc_scalar_args = (self._Om0, self._Ode0,
+                                           self._Ogamma0, self._neff_per_nu,
+                                           self._nmasslessnu,
+                                           self._nu_y_list)
 
     def efunc(self, z):
         """ Function used to calculate H(z), the Hubble parameter.
