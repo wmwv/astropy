@@ -24,3 +24,8 @@ for c in cosmologies:
 def run_comoving_distance(cos, n=10000, z_max=10.0):
     z = (z_max/n) * np.arange(n) + 0.001
     return z, cos.comoving_distance(z)
+
+
+def run_age(cos, n=10000, z_max=10.0):
+    z = (z_max/n) * np.arange(n) + 0.001
+    return z, cos.age(z)
