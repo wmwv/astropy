@@ -35,7 +35,7 @@ def run_bench(kind):
     result_cos_names = (("cosmo_flat", "Flat"),
                         ("cosmo_EdS", "Einstein - de Sitter"),
                         ("cosmo_dS", "de Sitter"),
-                        ("cosmo_closed_flat", "Omega_M > 1"),
+                        ("cosmo_closed_flat", "Flat Omega_M > 1"),
                         ("cosmo_open_nonflat", "Ok0 > 1"),
                         ("cosmo_closed_nonflat", "Ok0 < 1"))
 
